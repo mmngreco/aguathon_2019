@@ -8,12 +8,12 @@ import pandas as pd
 def crosscorr(x, y, nlags):
    xdm = x - np.mean(x)
    ydm = y - np.mean(y)
-   lags = np.arange(-nlags+1, nlags)
+   lags = np.arange(-nlags+1, 0)
    allag =  np.arange(-x.shape[0] + 1, x.shape[0])
    crosscorr = np.correlate(xdm, ydm, mode='full')
    crosscorr /= x.shape[0] * np.std(x) * np.std(y)
-   out = pd.Series(crosscorr, index=allag)
-   return out.loc[lags]
+   out = pd.Series(crosscorr, index=allag*-1)
+   return out.loc[-1*lags]
 
 
 def xcorr(x, y, normed=True, detrend=False, maxlags=10):
