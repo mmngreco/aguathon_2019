@@ -1,38 +1,47 @@
-# coding: utf-8
+"""CNN model."""
+import pickle
+import sys
+import os
+from uuid import uuid4
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import array
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.layers import Embedding
-from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.regularizers import l1
 from sklearn.preprocessing import StandardScaler
-from keras.layers import Dense, LSTM, GRU, SimpleRNN, Dropout, Activation, RepeatVector, TimeDistributed, Conv1D, Flatten
-from keras.regularizers import l1
-from keras.callbacks import EarlyStopping
+from tensorflow.keras.layers import (
+    # Embedding,
+    Dense,
+    # Dropout,
+    Conv1D,
+    Flatten,
+    MaxPooling1D,
+)
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import mean_squared_error
-from sklearn import preprocessing
-import os
-
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
+plt.ion()
+if sys.platform == "darwin":
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # plt.switch_backend('TkAgg')
 # get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 def train_test_split(dataset, train_frac):
     train_size = int(len(dataset)*train_frac)
-    return dataset[:train_size, :], dataset[train_size: ,:]
+    return dataset[:train_size, :], dataset[train_size:, :]
 
 
 def create_datasets(dataset, look_back=1, look_ahead=1, jump=1):
+    """create_datasets.
+    """
     data_x, data_y = [], []
+
     for i in range(0, len(dataset)-look_back-look_ahead+1, jump):
         window = dataset[i:(i+look_back), 0]
         data_x.append(window)
-        data_y.append(dataset[i + look_back:i + look_back + look_ahead , 0])
+        data_y.append(dataset[i + look_back:i + look_back + look_ahead, 0])
+
     return np.array(data_x), np.array(data_y)
 
 
@@ -41,73 +50,26 @@ def reverse_scale(data, mean, std):
 
 
 def calculate_error(train_y, test_y, pred_train, pred_test):
-    test_score = math.sqrt(mean_squared_error(test_y, pred_test))
-    train_score = math.sqrt(mean_squared_error(train_y, pred_train))
+    test_score = np.sqrt(mean_squared_error(test_y, pred_test))
+    train_score = np.sqrt(mean_squared_error(train_y, pred_train))
     return train_score, test_score
 
 
-def mean_absolute_percentage(y, y_pred):
-    return np.mean(np.abs((y - y_pred) / y)) * 100
+def mean_absolute_percentage(data_y, data_y_pred):
+    return np.mean(np.abs((data_y - data_y_pred) / data_y)) * 100
 
 
 def root_mse(pred_test, test_y):
     t = []
     for i in range(20):
-        score = math.sqrt(mean_squared_error(pred_test[:,i,:], test_y[:,i,:]))
+        score = np.sqrt(
+            mean_squared_error(pred_test[:, i, :], test_y[:, i, :])
+        )
         t.append(score)
-        print(i+1, "  ->  ", score)
 
     return score
 
 
-def plot_errors(pred_test, test_y, errors):
-    plt.figure(figsize=(20,10))
-    plt.subplot(311)
-    plt.plot(test_y[:,23,:], label="Observed")
-    plt.plot(pred_test[:,23,:], color="red", label="Predicted, MAPE: "+ str(round(errors[23], 5))+"%")
-    plt.title("24 step ahead prediction")
-    plt.ylabel("River Level")
-    plt.legend(loc=1, fontsize = 8, framealpha=0.8)
-
-    plt.subplot(312)
-    plt.plot(pred_test[:,47,:], color="red", label="Predicted, MAPE: "+ str(round(errors[47], 5))+"%")
-    plt.plot(test_y[:,47,:], label="Observed")
-    plt.title("48 step ahead prediction")
-    plt.legend(loc=1, fontsize = 8, framealpha=0.8)
-
-    plt.subplot(313)
-    plt.plot(pred_test[:,71,:], color="red", label="Predicted, MAPE: "+ str(round(errors[71], 5))+"%")
-    plt.plot(test_y[:,71,:], label="Observed")
-    plt.title("72 step ahead prediction")
-    plt.legend(loc=1, fontsize = 8, framealpha=0.8)
-    plt.tight_layout()
-    plt.show()
-
-
-def build_seq2seq_model(look_ahead=1):
-    m = Sequential()
-
-    # encoder
-    m.add(GRU(16, input_shape=(None, 1)))
-    # m.add(GRU(16, input_dim = 1))
-
-    # repeat for the number of steps out
-    m.add(RepeatVector(look_ahead))
-
-    # decoder
-    m.add(GRU(8, return_sequences=True))
-    m.add(GRU(8, return_sequences=True))
-
-    # split the output into timesteps
-    m.add(TimeDistributed(Dense(1)))
-
-    m.compile(loss='mse', optimizer='rmsprop')
-
-    m.summary()
-    return m
-
-# univariate data preparation
-# split a univariate sequence into samples
 def split_sequence(sequence, n_steps, x_freq, y_ahead=0):
     X, y = list(), list()
     last_idx = len(sequence)-y_ahead-1
@@ -124,90 +86,115 @@ def split_sequence(sequence, n_steps, x_freq, y_ahead=0):
     return array(X), array(y)
 
 # ----------------------------------------------------------------------------
-# # CNN
+# CNN
 # ----------------------------------------------------------------------------
 
-# get data
-fname = "./datos.csv"
-data = pd.read_csv(fname, index_col=0)
-data.index = data.index.astype("datetime64[ns]")
-data.sort_index(ascending=True, inplace=True)
-data_fixed = data.groupby(lambda x: x.weekofyear).transform(lambda x: x.fillna(x.mean()))
-all_levels = data_fixed.iloc[:, :6].values.astype("float64")
-names = data_fixed.columns[:6]
-split = 0.8
-batch_size=1200
-river = all_levels[:N, 5]  # zgz
-# split data into train and test subsets
-train, test = train_test_split(river, split)
-scaler = StandardScaler()
 
-# ----------------------------------------------------------------------------
-# MODEL
+def load_data():
+    """load_data"""
+    global data, data_fixed, all_levels, river
+    fname = "./datos.csv"
+    data = pd.read_csv(fname, index_col=0)
+    data.index = data.index.astype("datetime64[ns]")
+    data.sort_index(ascending=True, inplace=True)
 
-# define model
-# model = Sequential()
-# model.add(Conv1D(filters=64, kernel_size=200, activation='relu', input_shape=(n_steps, n_features)))
-# model.add(MaxPooling1D(pool_size=2))
-# model.add(Conv1D(filters=20, kernel_size=200, activation='relu'))
-# model.add(Conv1D(filters=20, kernel_size=100, activation='relu'))
-# model.add(Flatten())
-# model.add(Dense(10, activation='relu'))
-# model.add(Dense(1))
-# model.compile(optimizer='adam', loss='mse')
-# model.summary()
-# define model
-model = Sequential()
-model.add(Conv1D(filters=20, kernel_size=100, activation='relu', input_shape=(n_steps, n_features)))
-model.add(MaxPooling1D(pool_size=2))
-model.add(Flatten())
-model.add(Dense(10, activation='relu'))
-model.add(Dense(1))
-model.compile(optimizer='adam', loss='mse')
-model.summary()
+    data_fixed = data.groupby(lambda x: x.weekofyear)\
+                     .transform(lambda x: x.fillna(x.mean()))
+
+    all_levels = data_fixed.iloc[:, :6].values.astype("float64")
+    river = all_levels[:, 5]  # zgz
 
 
-# ----------------------------------------------------------------------------
+def build_model(n_steps, n_features):
+    """build_model"""
+    model = Sequential()
+    model.add(Conv1D(
+        filters=16,
+        kernel_size=16,
+        activation='relu',
+        input_shape=(n_steps, n_features),
+    ))
+    model.add(Conv1D(
+        filters=16,
+        kernel_size=8,
+        activation='relu',
+        kernel_regularizer=l1(0.01),
+    ))
+    model.add(Conv1D(
+        filters=16,
+        kernel_size=8,
+        activation='relu',
+        kernel_regularizer=l1(0.01),
+    ))
+    model.add(Conv1D(
+        filters=16,
+        kernel_size=8,
+        activation='relu',
+        kernel_regularizer=l1(0.01),
+    ))
+    # model.add(MaxPooling1D(pool_size=2))
+    model.add(Flatten())
+    # model.add(Dense(10, activation='relu'))
+    model.add(Dense(1))
+    model.compile(optimizer='adam', loss='mse')
+    model.summary()
+    return model
 
-n_steps = 200
-X, y = split_sequence(train, n_steps, jump=72)
-n_features = 1
-X = scaler.fit_transform(X)
 
-history = model.fit(
-    x=X,
-    y=y,
-    epochs=epochs,
-    batch_size=batch_size,
-    verbose=2,
-    validation_split=0.2,
-    callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.00001, patience=10, verbose=2, mode='auto')]
-)
+def plot_pred(y, yhat, uuid, score, name):
+    ax = pd.DataFrame(y, columns=["y"]).plot(figsize=(15, 10))
+    pd.DataFrame(yhat, columns=["yhat"]).plot(ax=ax)
+    plt.title("Score=%.3f" % score)
+    plt.savefig("%s-%s.png" % (name, uuid))
+    plt.show()
 
-# ax = pd.DataFrame(y[:1000]).plot(label="y")
-# pd.DataFrame(X[:1000,-1,0]).plot(ax=ax)
 
-# ----------------------------------------------------------------------------
+if __name__ == "__main__":
 
-yhat=model.predict(X)
+    # constants
+    UUID = str(uuid4())[:8]
+    SPLIT = 0.8
+    BATCH_SIZE = 1200
+    N_STEPS = 700
+    N_FEATURES = 1
+    EPOCHS = 30
+    X_FREQ = 8
+    JUMP = 72
 
-# ----------------------------------------------------------------------------
+    # variables
+    load_data()
+    train, test = train_test_split(river[:, None], SPLIT)
+    train_X, train_y = split_sequence(train, N_STEPS, X_FREQ, JUMP)
+    model = build_model(train_X.shape[1], N_FEATURES)
 
-ax = pd.DataFrame(y[:5000], columns=["y"]).plot()
-pd.DataFrame(yhat[:5000], columns=["yhat"]).plot(ax=ax)
-ax.savefig("prediction_cnn.png")
+    scaler = StandardScaler()
+    train_X_norm = scaler.fit_transform(train_X.squeeze())[:, :, None]
+    history = model.fit(
+        x=train_X_norm,
+        y=train_y,
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        verbose=2,
+        validation_split=1-SPLIT,
+        callbacks=[
+            EarlyStopping(
+                monitor='val_loss',
+                min_delta=0.00001,
+                patience=5,
+                verbose=2,
+                mode='auto',
+            )
+        ]
+    )
 
-scaler.fit_transform(X.flatten()[:, None])
-test_ = scaler.transform(test)
+    train_yhat = model.predict(train_X_norm)
+    score_train = mean_squared_error(train_y, train_yhat)
+    plot_pred(train_y, train_yhat, UUID, score_train, "train")
 
-# choose a number of time steps
-# split into samples
-X, y = split_sequence(test_, n_steps, x_freq=24, y_ahead=72)
-model.predict(X)
-errors = [mean_absolute_percentage(test_ytrue[:,i,:], test_yhat[:,i,:]) for i in range(test_ytrue.shape[1])]
-
-# ----------------------------------------------------------------------------
-
-with open("cnn.pkl", "wb") as f:
-    pickle.dump(f, model)
+    test_X, test_y = split_sequence(test, N_STEPS, X_FREQ, JUMP)
+    test_X_norm = scaler.transform(test_X.squeeze())[:, :, None]
+    test_yhat = model.predict(test_X_norm)
+    score_test = mean_squared_error(test_y, test_yhat)
+    plot_pred(test_y, test_yhat, UUID, score_test, "test")
+    model.save("CNN-%s-%.4f_%.4f.pkl" % (UUID, score_train, score_test))
 
