@@ -179,6 +179,12 @@ def build_model(n_steps, n_features, filters, kernel_size):
     #     bias_regularizer=l1(0.1),
     # ))
     model.add(Dense(
+        n_features*8,
+        activation='relu',
+        kernel_regularizer=l1(0.1),
+        bias_regularizer=l1(0.1),
+    ))
+    model.add(Dense(
         n_features,
         activation='relu',
         kernel_regularizer=l1(0.1),
