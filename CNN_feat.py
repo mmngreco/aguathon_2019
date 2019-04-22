@@ -9,12 +9,15 @@ from numpy import array
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.regularizers import l1
 from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 from tensorflow.keras.layers import (
     # Embedding,
     Dense,
-    # Dropout,
+    Dropout,
     Conv1D,
+    Conv2D,
     Flatten,
+    Reshape,
     # MaxPooling1D,
 )
 from tensorflow.keras.callbacks import EarlyStopping
@@ -69,9 +72,16 @@ def root_mse(pred_test, test_y):
     return score
 
 
-def split_sequence(sequence, n_steps, x_freq, y_ahead=0):
+def split_sequence(sequence, n_steps, x_freq, y_ahead=0, norm=True,
+                   return_scaler=False):
     X, y = list(), list()
     last_idx = len(sequence)-y_ahead-1
+    sequence_x = sequence
+
+    if norm:
+        scaler = StandardScaler()
+        sequence_x = scaler.fit_transform(sequence_x)
+
     for i in range(0, last_idx):
         # find the end of this pattern
         end_ix = i + n_steps
@@ -79,12 +89,17 @@ def split_sequence(sequence, n_steps, x_freq, y_ahead=0):
         if end_ix > last_idx:
             break
         # gather input and output parts of the pattern
-        seq_x, seq_y = sequence[i:end_ix:x_freq], sequence[end_ix+y_ahead]
+        seq_x = sequence_x[i:end_ix:x_freq]
         X.append(seq_x)
+
+        seq_y = sequence[end_ix + y_ahead]
         y.append(seq_y)
+
+    if norm and return_scaler:
+        return array(X), array(y), scaler
+
     return array(X), array(y)
 
-# ----------------------------------------------------------------------------
 # CNN
 # ----------------------------------------------------------------------------
 
@@ -100,22 +115,44 @@ def load_data():
     data_fixed = data.groupby(lambda x: x.weekofyear)\
                      .transform(lambda x: x.fillna(x.mean()))
 
-    all_levels = data_fixed.iloc[:, :6].values.astype("float64")
+    all_levels = data_fixed.iloc[:, :6].values.astype("float32")
     river = all_levels[:, 5]  # zgz
 
 
-def build_model(n_steps, n_features):
+def build_model(n_steps, n_features, filters, kernel_size):
     """build_model"""
     model = Sequential()
     model.add(Conv1D(
-        filters=32,
-        kernel_size=16,
+        filters=filters,
+        kernel_size=kernel_size,
         activation='relu',
         input_shape=(n_steps, n_features),
+        # kernel_regularizer=l1(0.1),
+        # bias_regularizer=l1(0.1),
     ))
+    # model.add(Conv1D(
+    #     filters=64,
+    #     kernel_size=8,
+    #     activation='relu',
+    #     kernel_regularizer=l1(0.1),
+    #     bias_regularizer=l1(0.1),
+    # ))
+    # model.add(Conv1D(
+    #     filters=32,
+    #     kernel_size=8,
+    #     activation='relu',
+    #     input_shape=(n_steps, n_features),
+    #     kernel_regularizer=l1(0.2),
+    # ))
+    # model.add(Dropout(0.4))
     # model.add(MaxPooling1D(pool_size=2))
+    model.add(Dense(
+        n_features,
+        activation='relu',
+        kernel_regularizer=l1(0.1),
+        bias_regularizer=l1(0.1),
+    ))
     model.add(Flatten())
-    # model.add(Dense(10, activation='relu'))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mse')
     model.summary()
@@ -125,25 +162,14 @@ def build_model(n_steps, n_features):
 def plot_pred(y, yhat, uuid, score, name):
     ax = pd.DataFrame(y, columns=["y"]).plot(figsize=(15, 10))
     pd.DataFrame(yhat, columns=["yhat"]).plot(ax=ax)
-    plt.title("Score=%.3f" % score)
-    plt.savefig("%s-%s.png" % (name, uuid))
+    plt.title("%s - %s - Score=%.3f" % (name, uuid, score))
+    plt.savefig("figures/%s-%s.png" % (name, uuid))
     plt.show()
 
 
-if __name__ == "__main__":
-
-    # constants
-    UUID = str(uuid4())[:8]
-    SPLIT = 0.8
-    BATCH_SIZE = 1200
-    N_STEPS = 700
-    EPOCHS = 30
-    X_FREQ = 8
-    JUMP = 72
-
-    # variables
+def main():
+    global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE
     load_data()
-    test_train_all_levels = [train_test_split(x[:, None], SPLIT) for x in all_levels.T]
 
     train_X_collection = []
     train_y_collection = []
@@ -151,36 +177,52 @@ if __name__ == "__main__":
     test_X_collection = []
     test_y_collection = []
 
-    scaler = StandardScaler()
+    for river in all_levels.T:
+        train, test = train_test_split(river[:, None], SPLIT)
 
-    for train, test in test_train_all_levels:
-        train, test = train_test_split(train[:, None], SPLIT)
         train_X, train_y = split_sequence(train, N_STEPS, X_FREQ, JUMP)
         test_X, test_y = split_sequence(test, N_STEPS, X_FREQ, JUMP)
 
-        train_X_collection.append(scaler.fit_transform(train_X.squeeze())[:, :, None])
+        train_X_collection.append(train_X)
         train_y_collection.append(train_y)
 
-        test_X_collection.append(scaler.fit_transform(test_X.squeeze())[:, :, None])
+        test_X_collection.append(test_X)
         test_y_collection.append(test_y)
 
     train_X = np.concatenate(train_X_collection, axis=2)
     test_X = np.concatenate(test_X_collection, axis=2)
+    # train_y = train_y
+    # test_y = test_y
+
+    TIME_STEPS = train_X.shape[1]
     N_FEATURES = train_X.shape[2]
-    model = build_model(train_X.shape[1], N_FEATURES)
-    __import__('pdb').set_trace()
+    model = build_model(TIME_STEPS, N_FEATURES, FILTERS, KERNEL_SIZE)
+
     history = model.fit(
         x=train_X,
         y=train_y,
         epochs=EPOCHS,
         batch_size=BATCH_SIZE,
         verbose=2,
-        validation_split=1-SPLIT,
+        # validation_split=1-SPLIT,
+        shuffle=False,
+        validation_data=(test_X, test_y),
         callbacks=[
+            TensorBoard(
+                log_dir='./logs',
+                histogram_freq=0,
+                write_graph=True,
+                write_images=False
+            ),
+            # ModelCheckpoint(
+            #     filepath='models/cnn-%s.{epoch:02d}-{val_loss:.2f}.h5' % UUID,
+            #     monitor='val_loss',
+            #     save_best_only=True
+            # ),
             EarlyStopping(
                 monitor='val_loss',
                 min_delta=0.00001,
-                patience=5,
+                patience=3,
                 verbose=2,
                 mode='auto',
             )
@@ -190,9 +232,42 @@ if __name__ == "__main__":
     train_yhat = model.predict(train_X)
     score_train = mean_squared_error(train_y, train_yhat)
     plot_pred(train_y, train_yhat, UUID, score_train, "train")
+    plot_pred(train_y[-1000:], train_yhat[-1000:], UUID, score_train, "train-1000")
 
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
     plot_pred(test_y, test_yhat, UUID, score_test, "test")
-    model.save("CNN-%s-%.4f_%.4f.pkl" % (UUID, score_train, score_test))
+    plot_pred(test_y[-1000:], test_yhat[-1000:], UUID, score_test, "test-1000")
+
+
+    fname = "models/CNN-%s-%.4f-%.4f" % (UUID, score_train, score_test)
+    model.save("%s.h5" % fname)
+    with open("%s.json" % fname, "w") as f:
+        f.write(model.to_json())
+
+
+if __name__ == "__main__":
+    # constants
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--split", type=float, default=0.8, help="test/train split")
+    parser.add_argument("-b", "--batch-size", type=int, default=512, help="batch size.")
+    parser.add_argument("-n", "--n-steps", type=int, default=64, help="Number of steps to look back.")
+    parser.add_argument("-e", "--epochs", type=int, default=230, help="Number of epochs.")
+    parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
+    parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
+    args = parser.parse_args()
+
+    # parameters
+    UUID = str(uuid4())[:8]
+    SPLIT = args.split
+    BATCH_SIZE = args.batch_size
+    N_STEPS = args.n_steps
+    EPOCHS = args.epochs
+    X_FREQ = 1
+    JUMP = 1
+    FILTERS = args.filters
+    KERNEL_SIZE = args.kernel_size
+
+    main()
 
