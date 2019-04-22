@@ -184,12 +184,12 @@ def build_model(n_steps, n_features, filters, kernel_size):
         kernel_regularizer=l1(0.1),
         bias_regularizer=l1(0.1),
     ))
-    model.add(Dense(
-        n_features,
-        activation='relu',
-        kernel_regularizer=l1(0.1),
-        bias_regularizer=l1(0.1),
-    ))
+    # model.add(Dense(
+    #     n_features,
+    #     activation='relu',
+    #     kernel_regularizer=l1(0.1),
+    #     bias_regularizer=l1(0.1),
+    # ))
     model.add(Flatten())
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mse')
