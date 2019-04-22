@@ -4,6 +4,7 @@ import os
 from uuid import uuid4
 import pandas as pd
 import matplotlib.pyplot as plt
+import utils
 import numpy as np
 from numpy import array
 from tensorflow.keras.models import Sequential
@@ -72,8 +73,30 @@ def root_mse(pred_test, test_y):
     return score
 
 
-def split_sequence(sequence, n_steps, x_freq, y_ahead=0, norm=True,
+def split_sequence(sequence, look_back, x_freq, y_ahead=0, norm=True,
                    return_scaler=False):
+    """Returns X and y variables from a sequence.
+
+    Parameters
+    ----------
+    sequence : array-like
+        1d sequence which it will be used to split in X and y.
+    look_back : int
+        Number of periods you want to have for each row.
+    x_freq : int
+        Decimation of x over look_back axis.
+    y_ahead : int
+        Distance ahead to align with each row of x.
+    norm : bool
+        If standarize X or not.
+    return_scaler : bool
+        If norm is True, you may want retrieve the scaler used. 
+
+    Returns
+    -------
+    X, y : array-like
+    scaler : Scaler, optional
+    """
     X, y = list(), list()
     last_idx = len(sequence)-y_ahead-1
     sequence_x = sequence
@@ -84,7 +107,7 @@ def split_sequence(sequence, n_steps, x_freq, y_ahead=0, norm=True,
 
     for i in range(0, last_idx):
         # find the end of this pattern
-        end_ix = i + n_steps
+        end_ix = i + look_back
         # check if we are beyond the sequence
         if end_ix > last_idx:
             break
@@ -116,6 +139,9 @@ def load_data():
                      .transform(lambda x: x.fillna(x.mean()))
 
     all_levels = data_fixed.iloc[:, :6].values.astype("float32")
+    # win = 6
+    # all_levels = data_fixed.iloc[:, :6].rolling(win).mean().values[win:].astype("float32")
+
     river = all_levels[:, 5]  # zgz
 
 
@@ -146,6 +172,12 @@ def build_model(n_steps, n_features, filters, kernel_size):
     # ))
     # model.add(Dropout(0.4))
     # model.add(MaxPooling1D(pool_size=2))
+    # model.add(Dense(
+    #     4,
+    #     activation='relu',
+    #     kernel_regularizer=l1(0.1),
+    #     bias_regularizer=l1(0.1),
+    # ))
     model.add(Dense(
         n_features,
         activation='relu',
@@ -222,7 +254,7 @@ def main():
             EarlyStopping(
                 monitor='val_loss',
                 min_delta=0.00001,
-                patience=3,
+                patience=5,
                 verbose=2,
                 mode='auto',
             )
@@ -232,12 +264,12 @@ def main():
     train_yhat = model.predict(train_X)
     score_train = mean_squared_error(train_y, train_yhat)
     plot_pred(train_y, train_yhat, UUID, score_train, "train")
-    plot_pred(train_y[-1000:], train_yhat[-1000:], UUID, score_train, "train-1000")
+    plot_pred(train_y[-2000:], train_yhat[-2000:], UUID, score_train, "train-2000")
 
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
     plot_pred(test_y, test_yhat, UUID, score_test, "test")
-    plot_pred(test_y[-1000:], test_yhat[-1000:], UUID, score_test, "test-1000")
+    plot_pred(test_y[-2000:], test_yhat[-2000:], UUID, score_test, "test-2000")
 
 
     fname = "models/CNN-%s-%.4f-%.4f" % (UUID, score_train, score_test)
@@ -256,16 +288,17 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--epochs", type=int, default=230, help="Number of epochs.")
     parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
     parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
+    parser.add_argument("-a", "--ahead", type=int, default=24, help="Look ahead.")
     args = parser.parse_args()
 
     # parameters
-    UUID = str(uuid4())[:8]
+    UUID = utils.get_git_revision_short_hash()
     SPLIT = args.split
     BATCH_SIZE = args.batch_size
     N_STEPS = args.n_steps
     EPOCHS = args.epochs
     X_FREQ = 1
-    JUMP = 1
+    JUMP = args.ahead
     FILTERS = args.filters
     KERNEL_SIZE = args.kernel_size
 

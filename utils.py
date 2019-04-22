@@ -3,7 +3,13 @@ from scipy.spatial.distance import pdist, squareform
 from matplotlib import pyplot as plt
 import seaborn as sns
 import pandas as pd
+import subprocess
 
+def get_git_revision_hash():
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode("ascii").strip()
+
+def get_git_revision_short_hash():
+    return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode("ascii").strip()
 
 def crosscorr(x, y, nlags):
    xdm = x - np.mean(x)
