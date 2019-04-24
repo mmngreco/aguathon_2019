@@ -181,13 +181,13 @@ def build_model(n_steps, n_features, filters, kernel_size):
     model.add(Dense(
         n_features*8,
         activation='relu',
-        kernel_regularizer=l2(0.001),
+        kernel_regularizer=L2,
         # bias_regularizer=l1(0.01),
     ))
     model.add(Dense(
         n_features,
         activation='relu',
-        kernel_regularizer=l2(0.001),
+        kernel_regularizer=L2,
         # bias_regularizer=l1(0.01),
     ))
     model.add(Flatten())
@@ -260,7 +260,7 @@ def main():
             EarlyStopping(
                 monitor='val_loss',
                 min_delta=0.00001,
-                patience=20,
+                patience=PATIENCE,
                 verbose=2,
                 mode='auto',
             )
@@ -295,6 +295,9 @@ if __name__ == "__main__":
     # parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
     parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
     parser.add_argument("-a", "--ahead", type=int, default=24, help="Look ahead.")
+    parser.add_argument("-p", "--patience", type=int, default=20, help="Set patience training param.")
+    parser.add_argument("-l1", "--l1", type=float, default=0, help="Set regularizer l1 param.")
+    parser.add_argument("-l2", "--l2", type=float, default=0, help="Set regularizer l2 param.")
     args = parser.parse_args()
 
     # parameters
@@ -307,6 +310,9 @@ if __name__ == "__main__":
     JUMP = args.ahead
     FILTERS = args.filters
     KERNEL_SIZE = args.n_steps
+    PATIENCE = args.patience
+    L1 = l1(args.l1)
+    L2 = l2(args.l2)
 
     main()
 
