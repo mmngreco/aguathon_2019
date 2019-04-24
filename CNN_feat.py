@@ -181,13 +181,13 @@ def build_model(n_steps, n_features, filters, kernel_size):
     model.add(Dense(
         n_features*8,
         activation='relu',
-        kernel_regularizer=L2,
+        kernel_regularizer=L_REG,
         # bias_regularizer=l1(0.01),
     ))
     model.add(Dense(
         n_features,
         activation='relu',
-        kernel_regularizer=L2,
+        kernel_regularizer=L_REG,
         # bias_regularizer=l1(0.01),
     ))
     model.add(Flatten())
@@ -206,7 +206,7 @@ def plot_pred(y, yhat, uuid, score, name):
 
 
 def main():
-    global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE
+    global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE, L
     load_data()
 
     train_X_collection = []
@@ -296,8 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
     parser.add_argument("-a", "--ahead", type=int, default=24, help="Look ahead.")
     parser.add_argument("-p", "--patience", type=int, default=20, help="Set patience training param.")
-    parser.add_argument("-l1", "--l1", type=float, default=0, help="Set regularizer l1 param.")
-    parser.add_argument("-l2", "--l2", type=float, default=0, help="Set regularizer l2 param.")
+    parser.add_argument("-l", "--l-reg", type=str, default=None, help="Set regularizer l param.")
     args = parser.parse_args()
 
     # parameters
@@ -311,8 +310,7 @@ if __name__ == "__main__":
     FILTERS = args.filters
     KERNEL_SIZE = args.n_steps
     PATIENCE = args.patience
-    L1 = l1(args.l1)
-    L2 = l2(args.l2)
+    L_REG = eval(args.l_reg)
 
     main()
 
