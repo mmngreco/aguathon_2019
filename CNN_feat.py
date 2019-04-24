@@ -8,7 +8,7 @@ import utils
 import numpy as np
 from numpy import array
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.regularizers import l1
+from tensorflow.keras.regularizers import l1, l2
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 from tensorflow.keras.layers import (
@@ -153,8 +153,8 @@ def build_model(n_steps, n_features, filters, kernel_size):
         kernel_size=kernel_size,
         activation='relu',
         input_shape=(n_steps, n_features),
-        # kernel_regularizer=l1(0.1),
-        # bias_regularizer=l1(0.1),
+        # kernel_regularizer=l1(0.01),
+        # bias_regularizer=l1(0.01),
     ))
     # model.add(Conv1D(
     #     filters=64,
@@ -181,15 +181,15 @@ def build_model(n_steps, n_features, filters, kernel_size):
     model.add(Dense(
         n_features*8,
         activation='relu',
-        kernel_regularizer=l1(0.1),
-        bias_regularizer=l1(0.1),
+        kernel_regularizer=l2(0.001),
+        # bias_regularizer=l1(0.01),
     ))
-    # model.add(Dense(
-    #     n_features,
-    #     activation='relu',
-    #     kernel_regularizer=l1(0.1),
-    #     bias_regularizer=l1(0.1),
-    # ))
+    model.add(Dense(
+        n_features,
+        activation='relu',
+        kernel_regularizer=l2(0.001),
+        # bias_regularizer=l1(0.01),
+    ))
     model.add(Flatten())
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mse')
@@ -202,7 +202,7 @@ def plot_pred(y, yhat, uuid, score, name):
     pd.DataFrame(yhat, columns=["yhat"]).plot(ax=ax)
     plt.title("%s - %s - Score=%.3f" % (name, uuid, score))
     plt.savefig("figures/%s-%s.png" % (name, uuid))
-    plt.show()
+    # plt.show()
 
 
 def main():
@@ -260,7 +260,7 @@ def main():
             EarlyStopping(
                 monitor='val_loss',
                 min_delta=0.00001,
-                patience=5,
+                patience=20,
                 verbose=2,
                 mode='auto',
             )
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--batch-size", type=int, default=512, help="batch size.")
     parser.add_argument("-n", "--n-steps", type=int, default=64, help="Number of steps to look back.")
     parser.add_argument("-e", "--epochs", type=int, default=230, help="Number of epochs.")
-    parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
+    # parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
     parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
     parser.add_argument("-a", "--ahead", type=int, default=24, help="Look ahead.")
     args = parser.parse_args()
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     X_FREQ = 1
     JUMP = args.ahead
     FILTERS = args.filters
-    KERNEL_SIZE = args.kernel_size
+    KERNEL_SIZE = args.n_steps
 
     main()
 
