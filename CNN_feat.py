@@ -1,6 +1,7 @@
 """CNN model."""
 import sys
 import os
+from datetime import datetime
 from uuid import uuid4
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -23,12 +24,9 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import mean_squared_error
-plt.ion()
+
 if sys.platform == "darwin":
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-# plt.switch_backend('TkAgg')
-# get_ipython().run_line_magic('matplotlib', 'inline')
-
 
 def train_test_split(dataset, train_frac):
     train_size = int(len(dataset)*train_frac)
@@ -147,48 +145,23 @@ def load_data():
 
 def build_model(n_steps, n_features, filters, kernel_size):
     """build_model"""
+    global L1L2, NEURONS1
     model = Sequential()
     model.add(Conv1D(
         filters=filters,
         kernel_size=kernel_size,
         activation='relu',
         input_shape=(n_steps, n_features),
-        # kernel_regularizer=l1(0.01),
-        # bias_regularizer=l1(0.01),
     ))
-    # model.add(Conv1D(
-    #     filters=64,
-    #     kernel_size=8,
-    #     activation='relu',
-    #     kernel_regularizer=l1(0.1),
-    #     bias_regularizer=l1(0.1),
-    # ))
-    # model.add(Conv1D(
-    #     filters=32,
-    #     kernel_size=8,
-    #     activation='relu',
-    #     input_shape=(n_steps, n_features),
-    #     kernel_regularizer=l1(0.2),
-    # ))
-    # model.add(Dropout(0.4))
-    # model.add(MaxPooling1D(pool_size=2))
-    # model.add(Dense(
-    #     4,
-    #     activation='relu',
-    #     kernel_regularizer=l1(0.1),
-    #     bias_regularizer=l1(0.1),
-    # ))
     model.add(Dense(
-        n_features*8,
+        NEURONS1,
         activation='relu',
-        kernel_regularizer=L_REG,
-        # bias_regularizer=l1(0.01),
+        kernel_regularizer=L1L2,
     ))
     model.add(Dense(
         n_features,
         activation='relu',
-        kernel_regularizer=L_REG,
-        # bias_regularizer=l1(0.01),
+        kernel_regularizer=L1L2,
     ))
     model.add(Flatten())
     model.add(Dense(1))
@@ -197,16 +170,16 @@ def build_model(n_steps, n_features, filters, kernel_size):
     return model
 
 
-def plot_pred(y, yhat, uuid, score, name):
+def plot_pred(y, yhat, name):
     ax = pd.DataFrame(y, columns=["y"]).plot(figsize=(15, 10))
     pd.DataFrame(yhat, columns=["yhat"]).plot(ax=ax)
-    plt.title("%s - %s - Score=%.3f" % (name, uuid, score))
-    plt.savefig("figures/%s-%s.png" % (name, uuid))
-    # plt.show()
+    plt.title("%s" % name)
+    plt.tight_layout()
+    plt.savefig("figures/%s.png" % name)
 
 
 def main():
-    global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE, L
+    global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE, L1L2, NEURONS1
     load_data()
 
     train_X_collection = []
@@ -269,18 +242,21 @@ def main():
 
     train_yhat = model.predict(train_X)
     score_train = mean_squared_error(train_y, train_yhat)
-    plot_pred(train_y, train_yhat, UUID, score_train, "train")
-    plot_pred(train_y[-2000:], train_yhat[-2000:], UUID, score_train, "train-2000")
 
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
-    plot_pred(test_y, test_yhat, UUID, score_test, "test")
-    plot_pred(test_y[-2000:], test_yhat[-2000:], UUID, score_test, "test-2000")
 
+    date = datetime.now().strftime("%Y%m%d-%H%M%S")
+    fname = "CNN-%s-%s-%.4f-%.4f" % (UUID, date, score_train, score_test)
 
-    fname = "models/CNN-%s-%.4f-%.4f" % (UUID, score_train, score_test)
-    model.save("%s.h5" % fname)
-    with open("%s.json" % fname, "w") as f:
+    plot_pred(train_y, train_yhat, f"train-{fname}")
+    plot_pred(train_y[-2000:], train_yhat[-2000:], f"train-{fname}-ZOOM_LAST")
+
+    plot_pred(test_y, test_yhat, f"test-{fname}")
+    plot_pred(test_y[-2000:], test_yhat[-2000:], f"test-{fname}-ZOOM_LAST")
+
+    model.save("models/%s.h5" % fname)
+    with open("models/%s.json" % fname, "w") as f:
         f.write(model.to_json())
 
 
@@ -290,13 +266,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--split", type=float, default=0.8, help="test/train split")
     parser.add_argument("-b", "--batch-size", type=int, default=512, help="batch size.")
-    parser.add_argument("-n", "--n-steps", type=int, default=64, help="Number of steps to look back.")
+    parser.add_argument("-n", "--n-steps", type=int, default=64, help="Number of time steps to look back.")
     parser.add_argument("-e", "--epochs", type=int, default=230, help="Number of epochs.")
     # parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
     parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
     parser.add_argument("-a", "--ahead", type=int, default=24, help="Look ahead.")
     parser.add_argument("-p", "--patience", type=int, default=20, help="Set patience training param.")
-    parser.add_argument("-l", "--l-reg", type=str, default=None, help="Set regularizer l param.")
+    parser.add_argument("-n1", "--neurons1", type=int, default=48, help="Number of neurons in the first Dense layer.")
+    parser.add_argument("-l", "--l1l2", type=str, default="None", help="Set regularizer l1 or l2, 'l1(0.1)' or 'l2(0.1)'.")
     args = parser.parse_args()
 
     # parameters
@@ -310,7 +287,8 @@ if __name__ == "__main__":
     FILTERS = args.filters
     KERNEL_SIZE = args.n_steps
     PATIENCE = args.patience
-    L_REG = eval(args.l_reg)
+    L1L2 = eval(args.l1l2)
+    NEURONS1 = args.neurons1
 
     main()
 
