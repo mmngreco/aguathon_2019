@@ -1,4 +1,5 @@
 """CNN model."""
+import logging
 import sys
 import os
 from datetime import datetime
@@ -24,6 +25,8 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import mean_squared_error
+
+logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 if sys.platform == "darwin":
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -182,6 +185,18 @@ def main():
     global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE, L1L2, NEURONS1
     load_data()
 
+    logging.info(f"UUID={UUID}")
+    logging.info(f"SPLIT={SPLIT}")
+    logging.info(f"BATCH_SIZE={BATCH_SIZE}")
+    logging.info(f"N_STEPS={N_STEPS}")
+    logging.info(f"EPOCHS={EPOCHS}")
+    logging.info(f"X_FREQ={X_FREQ}")
+    logging.info(f"JUMP={JUMP}")
+    logging.info(f"FILTERS={FILTERS}")
+    logging.info(f"KERNEL_SIZE={KERNEL_SIZE}")
+    logging.info(f"L1L2={L1L2}")
+    logging.info(f"NEURONS1={NEURONS1}")
+
     train_X_collection = []
     train_y_collection = []
 
@@ -245,6 +260,9 @@ def main():
 
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
+
+    logging.info(f"SCORE_TRAIN={score_train}")
+    logging.info(f"SCORE_TEST={score_test}")
 
     date = datetime.now().strftime("%Y%m%d-%H%M%S")
     fname = "CNN-%s-%s-%.4f-%.4f" % (UUID, date, score_train, score_test)
