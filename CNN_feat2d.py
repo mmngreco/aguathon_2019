@@ -21,15 +21,17 @@ from tensorflow.keras.layers import (
     Conv2D,
     Flatten,
     Reshape,
-    # MaxPooling1D,
 )
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import mean_squared_error
 
-logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+fmt = '%(name)s | %(asctime)s | %(levelname)s | %(message)s'
+logging.basicConfig(format=fmt, level=logging.INFO)
+log = logging.getLogger(__name__)
 
 if sys.platform == "darwin":
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 
 def train_test_split(dataset, train_frac):
     train_size = int(len(dataset)*train_frac)
@@ -118,20 +120,25 @@ def split_sequence(sequence, look_back, x_freq, y_ahead=[0], norm=True,
         seq_x = sequence_x[i:end_ix:x_freq]
         X.append(seq_x)
 
-        seq_y = [sequence[end_ix + y_ahead_i, 0] for y_ahead_i in y_ahead]  # each row
+        # each row
+        seq_y = [sequence[end_ix + y_ahead_i, 0] for y_ahead_i in y_ahead]
         y.append(seq_y)
 
-    if norm and return_scaler:
-        return array(X), array(y), scaler
+    out_x = array(X)
+    # out_y = [yi[:, None] for yi in array(y).T]
+    out_y = array(y)
 
-    return array(X), array(y)
+    if norm and return_scaler:
+        return out_x, out_y, scaler
+
+    return out_x, out_y
 
 # CNN
 # ----------------------------------------------------------------------------
 
 
 def load_data():
-    """load_data"""
+    """load_data to global scope"""
     global data, data_fixed, all_levels, river
     fname = "./datos.csv"
     data = pd.read_csv(fname, index_col=0)
@@ -142,15 +149,12 @@ def load_data():
                      .transform(lambda x: x.fillna(x.mean()))
 
     all_levels = data_fixed.iloc[:, :6].values.astype("float32")
-    # win = 6
-    # all_levels = data_fixed.iloc[:, :6].rolling(win).mean().values[win:].astype("float32")
-
     river = all_levels[:, 5]  # zgz
 
 
-def build_model(n_steps, n_features, filters, kernel_size):
+def build_model(n_steps, n_features, filters, kernel_size, L1L2, NEURONS1,
+                NEURONS_OUT):
     """build_model"""
-    global L1L2, NEURONS1, NEURONS_OUT
     model = Sequential()
     model.add(Conv1D(
         filters=filters,
@@ -163,11 +167,11 @@ def build_model(n_steps, n_features, filters, kernel_size):
         activation='relu',
         kernel_regularizer=L1L2,
     ))
-    model.add(Dense(
-        n_features,
-        activation='relu',
-        kernel_regularizer=L1L2,
-    ))
+    # model.add(Dense(
+    #     n_features,
+    #     activation='relu',
+    #     kernel_regularizer=L1L2,
+    # ))
     model.add(Flatten())
     model.add(Dense(NEURONS_OUT))
     model.compile(optimizer='adam', loss='mse')
@@ -176,28 +180,39 @@ def build_model(n_steps, n_features, filters, kernel_size):
 
 
 def plot_pred(y, yhat, name):
-    ax = pd.DataFrame(y, columns=["y%s" % a for a in JUMP]).plot(figsize=(15, 10))
-    pd.DataFrame(yhat, columns=["yhat%s" % a for a in JUMP]).plot(ax=ax)
-    plt.title("%s" % name)
-    plt.tight_layout()
-    plt.savefig("figures/%s.png" % name)
+    ahead_list = JUMP
+    for i in range(y.shape[1]):
+        ahead = ahead_list[i]
+        _y = y[:, i][:, None]
+        _yhat = yhat[:, i][:, None]
+        ax = pd.DataFrame(_y, columns=["y%s" % ahead]).plot(figsize=(15, 10))
+        pd.DataFrame(_yhat, columns=["yhat%s" % ahead]).plot(ax=ax)
+        plt.title("%s" % name)
+        plt.tight_layout()
+        plt.savefig("figures/%s-%s.png" % (name, ahead))
+
+        pd.DataFrame(_y-_yhat, columns=["yhat%s" % ahead]).plot(figsize=(15, 10))
+        plt.title("diff-%s" % name)
+        plt.tight_layout()
+        plt.savefig("figures/%s-%s-diff.png" % (name, ahead))
 
 
 def main():
     global UUID, SPLIT, BATCH_SIZE, N_STEPS, EPOCHS, X_FREQ, JUMP, FILTERS, KERNEL_SIZE, L1L2, NEURONS1
     load_data()
 
-    logging.info(f"UUID={UUID}")
-    logging.info(f"SPLIT={SPLIT}")
-    logging.info(f"BATCH_SIZE={BATCH_SIZE}")
-    logging.info(f"N_STEPS={N_STEPS}")
-    logging.info(f"EPOCHS={EPOCHS}")
-    logging.info(f"X_FREQ={X_FREQ}")
-    logging.info(f"JUMP={JUMP}")
-    logging.info(f"FILTERS={FILTERS}")
-    logging.info(f"KERNEL_SIZE={KERNEL_SIZE}")
-    logging.info(f"L1L2={L1L2}")
-    logging.info(f"NEURONS1={NEURONS1}")
+    log.info(f"UUID={UUID}")
+    log.info(f"SPLIT={SPLIT}")
+    log.info(f"BATCH_SIZE={BATCH_SIZE}")
+    log.info(f"N_STEPS={N_STEPS}")
+    log.info(f"EPOCHS={EPOCHS}")
+    log.info(f"X_FREQ={X_FREQ}")
+    log.info(f"JUMP={JUMP}")
+    log.info(f"FILTERS={FILTERS}")
+    log.info(f"KERNEL_SIZE={KERNEL_SIZE}")
+    log.info(f"L1L2={L1L2}")
+    log.info(f"NEURONS1={NEURONS1}")
+    log.info(f"NEURONS_OUT={NEURONS_OUT}")
 
     train_X_collection = []
     train_y_collection = []
@@ -219,12 +234,12 @@ def main():
 
     train_X = np.concatenate(train_X_collection, axis=2)
     test_X = np.concatenate(test_X_collection, axis=2)
-    # train_y = train_y
-    # test_y = test_y
-    __import__('pdb').set_trace()
+
+    # __import__('pdb').set_trace()
     TIME_STEPS = train_X.shape[1]
     N_FEATURES = train_X.shape[2]
-    model = build_model(TIME_STEPS, N_FEATURES, FILTERS, KERNEL_SIZE)
+    model = build_model(TIME_STEPS, N_FEATURES, FILTERS, KERNEL_SIZE, L1L2,
+                        NEURONS1, NEURONS_OUT)
 
     history = model.fit(
         x=train_X,
@@ -236,12 +251,12 @@ def main():
         shuffle=False,
         validation_data=(test_X, test_y),
         callbacks=[
-            TensorBoard(
-                log_dir='./logs',
-                histogram_freq=0,
-                write_graph=True,
-                write_images=False
-            ),
+            # TensorBoard(
+            #     log_dir='./logs',
+            #     histogram_freq=0,
+            #     write_graph=True,
+            #     write_images=False
+            # ),
             # ModelCheckpoint(
             #     filepath='models/cnn-%s.{epoch:02d}-{val_loss:.2f}.h5' % UUID,
             #     monitor='val_loss',
@@ -256,18 +271,19 @@ def main():
             )
         ]
     )
-
+    __import__('pdb').set_trace()
     train_yhat = model.predict(train_X)
     score_train = mean_squared_error(train_y, train_yhat)
 
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
 
-    logging.info(f"SCORE_TRAIN={score_train}")
-    logging.info(f"SCORE_TEST={score_test}")
+    log.info(f"SCORE_TRAIN={score_train}")
+    log.info(f"SCORE_TEST={score_test}")
 
     date = datetime.now().strftime("%Y%m%d-%H%M%S")
     fname = "CNN-%s-%s-%.4f-%.4f" % (UUID, date, score_train, score_test)
+    log.info(f"fname={fname}")
 
     plot_pred(train_y, train_yhat, f"train-{fname}")
     plot_pred(train_y[-2000:], train_yhat[-2000:], f"train-{fname}-ZOOM_LAST")
@@ -280,36 +296,61 @@ def main():
         f.write(model.to_json())
 
 
+def load_model(name=None, path="models/"):
+    from pathlib import Path
+    from collections import defaultdict
+    if name is None:
+        name = ""
+    dir = Path(path)
+    files = dir.glob(f"*{name}.h5")
+    out = defaultdict(list)
+    for f in files:
+        fname_list = f.stem.split("-")
+        out["loss"].append(fname_list[-2])
+        out["val_loss"].append(fname_list[-1])
+        out["fname"].append(str(f))
+    return out
+
+
 if __name__ == "__main__":
     # constants
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--split", type=float, default=0.8, help="test/train split")
-    parser.add_argument("-b", "--batch-size", type=int, default=512, help="batch size.")
-    parser.add_argument("-n", "--n-steps", type=int, default=64, help="Number of time steps to look back.")
-    parser.add_argument("-e", "--epochs", type=int, default=230, help="Number of epochs.")
-    # parser.add_argument("-k", "--kernel-size", type=int, default=8, help="Number of epochs.")
-    parser.add_argument("-f", "--filters", type=int, default=8, help="Number of filters.")
-    parser.add_argument("-a", "--ahead", type=str, default=[24], help="Look ahead.")
-    parser.add_argument("-p", "--patience", type=int, default=20, help="Set patience training param.")
-    parser.add_argument("-n1", "--neurons1", type=int, default=48, help="Number of neurons in the first Dense layer.")
-    parser.add_argument("-l", "--l1l2", type=str, default="None", help="Set regularizer l1 or l2, 'l1(0.1)' or 'l2(0.1)'.")
+
+    doc = "test/train split"
+    parser.add_argument("-s", "--split", type=float, default=0.8, help=doc)
+    doc = "Batch size."
+    parser.add_argument("-b", "--batch-size", type=int, default=512, help=doc)
+    doc = "Number of time steps to look back."
+    parser.add_argument("-lb", "--look-back", type=int, default=64, help=doc)
+    doc = "Number of epochs."
+    parser.add_argument("-e", "--epochs", type=int, default=230, help=doc)
+    doc = "Number of filters."
+    parser.add_argument("-f", "--filters", type=int, default=8, help=doc)
+    doc = "Look ahead."
+    parser.add_argument("-la", "--look-ahead", type=str, default="[24]", help=doc)
+    doc = "Set patience training param."
+    parser.add_argument("-p", "--patience", type=int, default=20, help=doc)
+    doc = "Number of neurons in the first Dense layer."
+    parser.add_argument("-n1", "--neurons1", type=int, default=48, help=doc)
+    doc = "Define a regularizer like 'l1(0.1)' or 'l2(0.1)'."
+    parser.add_argument("-l", "--l1l2", type=str, default="None", help=doc)
     args = parser.parse_args()
 
     # parameters
     UUID = utils.get_git_revision_short_hash()
     SPLIT = args.split
     BATCH_SIZE = args.batch_size
-    N_STEPS = args.n_steps
+    N_STEPS = args.look_back
     EPOCHS = args.epochs
     X_FREQ = 1
-    JUMP = eval(args.ahead)
+    JUMP = eval(args.look_ahead)
     FILTERS = args.filters
-    KERNEL_SIZE = args.n_steps
+    KERNEL_SIZE = args.look_back
     PATIENCE = args.patience
     L1L2 = eval(args.l1l2)
     NEURONS1 = args.neurons1
     NEURONS_OUT = len(JUMP)
-
+    __import__('pdb').set_trace()
     main()
 
