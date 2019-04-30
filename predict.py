@@ -3,8 +3,6 @@ import logging
 import sys
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import utils
 from uuid import uuid4
 from sklearn.preprocessing import StandardScaler
@@ -18,28 +16,40 @@ if sys.platform == "darwin":
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
-def load_data(fname):
+def load_data(fname, fill_na=True):
     """load_data to global scope"""
-    global data, data_fixed, all_levels, river
+
+    log.info(f"Loading file names {fname}")
     fname = Path("./datos.csv")
+    global data, data_fixed, all_levels, river
     assert fname.exists()
     data = pd.read_csv(fname, index_col=0)
     data.index = data.index.astype("datetime64[ns]")
     data.sort_index(ascending=True, inplace=True)
 
-    data_fixed = data.groupby(lambda x: x.weekofyear)\
-                     .transform(lambda x: x.fillna(x.mean()))
+    if fill_na:
+        data = data.groupby(lambda x: x.weekofyear)\
+                   .transform(lambda x: x.fillna(x.mean()))
 
-    all_levels = data_fixed.iloc[:, :6].values.astype("float32")
+    out = data.iloc[:, :6].values.astype("float32")
+    return out
 
+
+def export_data(data, fname):
+    log.info(f"Exporting file to {fname}.")
+    columns = ["zgz_nr", "pred24", "pred48", "pre72"]
+    df = pd.DataFrame(data, columns=columns)
+    df.to_csv(fname)
+    log.info(f"File named {fname} exported.")
 
 
 
 def main():
     load_data()
-
-    if PDB:
-        __import__('pdb').set_trace()
+    Path("best_models.txt")
+    m24 = load_models()
+    m48 = load_models()
+    m72 = load_models()
 
     train_yhat = model.predict(train_X)
     score_train = mean_squared_error(train_y, train_yhat)
@@ -47,20 +57,8 @@ def main():
     test_yhat = model.predict(test_X)
     score_test = mean_squared_error(test_y, test_yhat)
 
-    log.info(f"SCORE_TRAIN={score_train}")
-    log.info(f"SCORE_TEST={score_test}")
-
     date = datetime.now().strftime("%Y%m%d-%H%M%S")
-    fname = "CNN-%s-%s-%s-%.4f-%.4f" % (LOOK_AHEAD, UUID, date, score_train, score_test)
     log.info(f"fname={fname}")
-
-    plot_pred(train_y, train_yhat, f"train-{fname}")
-    plot_pred(train_y[-2000:], train_yhat[-2000:], f"train-{fname}-ZOOM_LAST")
-
-    plot_pred(test_y, test_yhat, f"test-{fname}")
-    plot_pred(test_y[-2000:], test_yhat[-2000:], f"test-{fname}-ZOOM_LAST")
-
-    model.save("models/%s.h5" % fname)
 
 
 def load_model(name=None, path="models/"):
@@ -87,29 +85,10 @@ if __name__ == "__main__":
 
     # parameters
     UUID = "-".join([utils.get_git_revision_short_hash(), str(uuid4())])
-    SPLIT = args.split
-    BATCH_SIZE = args.batch_size
-    # N_STEPS = args.look_back
-    EPOCHS = args.epochs
-    X_FREQ = 1
-    LOOK_AHEAD = args.look_ahead
-    FILTERS = args.filters
-    KERNEL_SIZE = args.kernel_size
-    PATIENCE = args.patience
-    L1L2 = eval(args.l1l2)
-    CELLS_D1 = args.neurons1
-    CELLS_D2 = args.neurons2
-    NEURONS_OUT = 1
-    PDB = bool(args.pdb)
 
     fmt = ('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
     sh = logging.StreamHandler(sys.stdout)
     handlers = [sh]
-
-    if args.log_path:
-        fh = logging.FileHandler(f"{args.log_path}/{UUID}.log")
-        handlers.append(fh)
-
     logging.basicConfig(level=logging.INFO, format=fmt, handlers=handlers)
 
     try:
@@ -117,6 +96,5 @@ if __name__ == "__main__":
     except:
         log = logging.getLogger()
 
-    log.info("COMMAND=python %s" % " ".join(sys.argv))
     main()
 
