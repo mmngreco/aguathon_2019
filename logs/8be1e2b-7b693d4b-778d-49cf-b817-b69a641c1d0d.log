@@ -1,0 +1,26 @@
+CNN_feat2d.py | 2019-04-30 14:43:48,374 | INFO | COMMAND=python CNN_feat2d.py --l1l2 l2(0.01) -b 7800 -e 40 -f 108 -la 72 -n1 358 -n2 6 -p 6
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | UUID=8be1e2b-7b693d4b-778d-49cf-b817-b69a641c1d0d
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | SPLIT=0.8
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | BATCH_SIZE=7800
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | EPOCHS=40
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | PATIENCE=6
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | X_FREQ=1
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | LOOK_AHEAD=72
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | FILTERS=108
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | KERNEL_SIZE=6
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | L1L2=<tensorflow.python.keras.regularizers.L1L2 object at 0x7fb49731f358>
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | CELLS_D1=358
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | CELLS_D2=6
+CNN_feat2d.py | 2019-04-30 14:43:48,957 | INFO | NEURONS_OUT=1
+tensorflow | 2019-04-30 14:43:48,988 | WARNING | From /root/miniconda3/envs/river/lib/python3.6/site-packages/tensorflow/python/ops/resource_variable_ops.py:435: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Colocations handled automatically by placer.
+tensorflow | 2019-04-30 14:43:49,101 | WARNING | From /root/miniconda3/envs/river/lib/python3.6/site-packages/tensorflow/python/keras/utils/losses_utils.py:170: to_float (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.cast instead.
+tensorflow | 2019-04-30 14:43:49,302 | WARNING | From /root/miniconda3/envs/river/lib/python3.6/site-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.cast instead.
+CNN_feat2d.py | 2019-04-30 14:44:47,373 | INFO | SCORE_TRAIN=0.09556008875370026
+CNN_feat2d.py | 2019-04-30 14:44:47,374 | INFO | SCORE_TEST=0.08780006319284439
+CNN_feat2d.py | 2019-04-30 14:44:47,374 | INFO | fname=CNN-72-8be1e2b-7b693d4b-778d-49cf-b817-b69a641c1d0d-20190430-144447-0.0956-0.0878
