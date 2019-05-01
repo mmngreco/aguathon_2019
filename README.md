@@ -3,26 +3,36 @@
 
 | Autor  | Maximiliano Greco            |
 | :---:  | :---------------:            |
-| Mail   | mmngreco@gmail.com           |
 | Github | https://github.com/mmngreco/ |
 
 
 
 ## Instalación
 
-Definimos un entorno virtual con conda.
+Definir un entorno virtual con conda.
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yml -n river
 ```
 
 ## Uso
 
 ```bash
 conda activate river
-python CNN2d_feat.py -h  # para entrenar
-python predict.py -h  # para predecir
 ```
+
+Para entrenar modelos:
+
+```python
+python CNN_feat2d.py -h  # para entrenar (no es necesario)
+```
+
+Para predecir con los modelos entrenados, solo hay que ejecutar:
+
+```python
+python predict.py  # para predecir
+```
+
 
 ## Motivación
 
@@ -32,19 +42,53 @@ salida. Esta arquitectura es la que mejor me ha funcionado, otros proyectos que
 he visto, usan LSTM o GRU, sin embargo, esa aproximación no me ha dado buenos
 resultados con el añadido de que poco intuitivas y dificiles de entender.
 
+Esta estructura la he definido a partir de la intuición y del ensayo error.
+La mayoria de trabajos y proyectos que he consulado no hacían uso de las redes
+recurrentes, en su lugar aplicaban redes neuronals o bien LSTM. Me pareció que
+merecía la pena hacer la prueba ya que estas redes se aplican en imagen
+fundamentalmente. En nuestro caso, a pesar de tener series temporales, parece
+que funcionan especialmente bien debido a la similitud dimensional con las
+imagenes, en cierta, forma estos río forman una "imagen" que queremos predecir.
+
+
+
 ### Estructura de la RED
+
+Puede ver este diagrama usando un renderizador de [`mermaid`](https://mermaidjs.github.io/mermaid-live-editor/#/view/eyJjb2RlIjoiZ3JhcGggTFJcbkEoKFgpKSAtLT4gQ05OXzFkXG5DTk5fMWQgLS0-IERlbnNlMVxuRGVuc2UxIC0tPiBEZW5zZTJcbkRlbnNlMiAtLT4gRmxhdHRlblxuRmxhdHRlbiAtLT4gRGVuc2UzXG5EZW5zZTMgLS0-IEIoKHkyNCkpXG5EZW5zZTMgLS0-IEMoKHk0OCkpXG5EZW5zZTMgLS0-IEQoKHk3MikpXG4iLCJtZXJtYWlkIjp7InRoZW1lIjoiZGVmYXVsdCJ9fQ).
 
 ```mermaid
 graph LR
 A((X)) --> CNN_1d
+Z((y24)) --> CNN_1d
 CNN_1d --> Dense1
 Dense1 --> Dense2
 Dense2 --> Flatten
 Flatten --> Dense3
-Dense3 --> B((y24))
-Dense3 --> C((y48))
-Dense3 --> D((y72))
+Dense3 --> B((yhat24))
 ```
+
+```mermaid
+graph LR
+A((X)) --> CNN_1d
+Z((y48)) --> CNN_1d
+CNN_1d --> Dense1
+Dense1 --> Dense2
+Dense2 --> Flatten
+Flatten --> Dense3
+Dense3 --> B((yhat48))
+```
+
+```mermaid
+graph LR
+A((X)) --> CNN_1d
+Z((y72)) --> CNN_1d
+CNN_1d --> Dense1
+Dense1 --> Dense2
+Dense2 --> Flatten
+Flatten --> Dense3
+Dense3 --> D((yhat72))
+```
+
 
 En el script `CNN_feat.py` se encuentra la función `build_model()` que se encarga
 de crear la red de acuerdo a unos parámetros. Pero en esencia es lo siguiente:
@@ -70,44 +114,6 @@ model.add(Dense(
 model.add(Flatten())
 model.add(Dense(NEURONS_OUT))
 model.compile(optimizer='adam', loss='mse')
-model.summary()
 ```
-
-## Los datos
-
-Para aprovechar esta arquitectura e incluir información pasada de cada feature,
-he creado una función que se encarga de formatear los datos para la
-arquitectura anterior. A partir del dataset con los datos originales, se ha
-construido `X` de la siguiente forma:
-
-Si el dataset contiene una sequencia temporal por cada rio que se compone de
-$\{x^i_0, ...,x^i_n\}$, donde i cada uno de los ríos:
-
-La matriz de entrenamiento tiene la siguiente forma:
-
-| $X^i_{m,k}$ = |                 |       |             |
-| :---:         | :---:           | :---: | :---:       |
-| $x^i_0$       | $x^i_{0+1}$     | ...   | $x^i_{0+k}$ |
-| $x^i_1$       | $x^i_{1+1}$     | ...   | $x^i_{1+k}$ |
-| ...           | ...             | ...   | ...         |
-| $x^i_{n-k-m}$ | $x^i_{n+1-k-m}$ | ...   | $x^i_{n-m}$ |
-
-El output:
-
-| $Y^{i=5}_{m,k}$ = |
-| :--:          |
-| $x^{i=5}_{1+k}$   |
-| $x^{i=5}_{2+k}$   |
-| ...           |
-| $x^{i=5}_{n}$     |
-
-### Dónde:
-
-- `k` : Número de observaciones temporales que incluimos en cada fila. Puede ver como la cantidad de información pasada que contiene cada observación (look back).
-- `m` : Distancia de la observacion futuras que se va a predicir (look ahead). En este caso $m  = \{24, 48, 72\}$
-- `n` : Número total de elementos.
-- `i` : Es cada río, y por tanto i=5 corresponde a Zaragoza.
-
-La dimensión de X es (N,6,1), y la de y es (N, 1).
 
 

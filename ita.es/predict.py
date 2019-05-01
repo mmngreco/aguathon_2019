@@ -1,4 +1,5 @@
 """CNN model."""
+from init import *
 import pandas as pd
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -24,12 +25,10 @@ def load_data(fname, fill_na=True, y_data=False):
 
 
 def main():
-    IN_DIR = Path("ENTRADA/datos.csv")
-    OUT_DIR = Path("SALIDA/resultados.csv")
-    data = load_data(IN_DIR)
-    m24 = load_model("CNN_24.h5")
-    m48 = load_model("CNN_48.h5")
-    m72 = load_model("CNN_72.h5")
+    data = load_data(IN_FILE)
+    m24 = load_model(MODELS_DIR / "CNN_24.h5")
+    m48 = load_model(MODELS_DIR / "CNN_48.h5")
+    m72 = load_model(MODELS_DIR / "CNN_72.h5")
     model_list = [m24, m48, m72]
     yhat_list = []
     scaler = StandardScaler()
@@ -45,7 +44,7 @@ def main():
         columns=["H24", "H48", "H72"]
     )
     df.index.name = "time"
-    df.to_csv(OUT_DIR, index=True)
+    df.to_csv(OUT_FILE, index=True)
 
 
 if __name__ == "__main__":

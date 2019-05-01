@@ -11,10 +11,7 @@ def get_git_revision_hash():
 
 
 def get_git_revision_short_hash():
-    try: 
-        return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode("ascii").strip()
-    except:
-        return ""
+    return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode("ascii").strip()
 
 
 def crosscorr(x, y, nlags):
