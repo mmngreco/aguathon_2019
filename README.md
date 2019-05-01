@@ -7,19 +7,25 @@
 
 
 
-## Instalación
+## 1. Instalación
+
+### Conda
 
 Definir un entorno virtual con conda.
 
 ```bash
 conda env create -f environment.yml -n river
-```
-
-## Uso
-
-```bash
 conda activate river
 ```
+
+### Docker
+
+```bash
+docker build -t aguathon .
+docker run -it aguathon
+```
+
+## 2. Uso
 
 Para entrenar modelos:
 
@@ -34,7 +40,7 @@ python predict.py  # para predecir
 ```
 
 
-## Motivación
+## 3. Motivación
 
 Para la prediccón se ha usado una red neuronal que mezcla una capa
 "convolucional", seguida de una capa oculta  y una capa "full conected" de
