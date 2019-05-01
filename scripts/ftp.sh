@@ -1,7 +1,7 @@
 #!/bin/sh
 HOST='ftp.ita.es'
-USER='hackathon086'
-PASSWD='237troDYC'
+USER='xxxx'
+PASSWD='xxxxx'
 FILE=@0
 
 ftp -n $HOST <<END_SCRIPT
