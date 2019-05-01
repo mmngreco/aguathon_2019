@@ -54,43 +54,11 @@ imagenes, en cierta, forma estos río forman una "imagen" que queremos predecir.
 
 ### Estructura de la RED
 
-Puede ver este diagrama usando un renderizador de [`mermaid`](https://mermaidjs.github.io/mermaid-live-editor/#/view/eyJjb2RlIjoiZ3JhcGggTFJcbkEoKFgpKSAtLT4gQ05OXzFkXG5DTk5fMWQgLS0-IERlbnNlMVxuRGVuc2UxIC0tPiBEZW5zZTJcbkRlbnNlMiAtLT4gRmxhdHRlblxuRmxhdHRlbiAtLT4gRGVuc2UzXG5EZW5zZTMgLS0-IEIoKHkyNCkpXG5EZW5zZTMgLS0-IEMoKHk0OCkpXG5EZW5zZTMgLS0-IEQoKHk3MikpXG4iLCJtZXJtYWlkIjp7InRoZW1lIjoiZGVmYXVsdCJ9fQ).
+Puede ver este diagrama usando un renderizador de [`mermaid`](https://mermaidjs.github.io/mermaid-live-editor/#/view/eyJjb2RlIjoiZ3JhcGggTFJcblhfMjQoKFgpKSAtLT4gQ05OXzFkXzI0XG55MjQoKHkyNCkpIC0tPiBDTk5fMWRfMjRcbkNOTl8xZF8yNCAtLT4gRGVuc2UxXzI0XG5EZW5zZTFfMjQgLS0-IERlbnNlMl8yNFxuRGVuc2UyXzI0IC0tPiBGbGF0dGVuXzI0XG5GbGF0dGVuXzI0IC0tPiBEZW5zZTNfMjRcbkRlbnNlM18yNCAtLT4geWhhdF8yNCgoeWhhdDI0KSlcblxuXG5YXzQ4KChYKSkgLS0-IENOTl8xZF80OFxueV80OCgoeTQ4KSkgLS0-IENOTl8xZF80OFxuQ05OXzFkXzQ4IC0tPiBEZW5zZTFfNDhcbkRlbnNlMV80OCAtLT4gRGVuc2UyXzQ4XG5EZW5zZTJfNDggLS0-IEZsYXR0ZW5fNDhcbkZsYXR0ZW5fNDggLS0-IERlbnNlM180OFxuRGVuc2UzXzQ4IC0tPiBCXzQ4KCh5aGF0NDgpKVxuXG5YXzcyKChYKSkgLS0-IENOTl8xZF83MlxueV83MigoeTcyKSkgLS0-IENOTl8xZF83MlxuQ05OXzFkXzcyIC0tPiBEZW5zZTFfNzJcbkRlbnNlMV83MiAtLT4gRGVuc2UyXzcyXG5EZW5zZTJfNzIgLS0-IEZsYXR0ZW5fNzJcbkZsYXR0ZW5fNzIgLS0-IERlbnNlM183MlxuRGVuc2UzXzcyIC0tPiBCXzcyKCh5aGF0NzIpKSIsIm1lcm1haWQiOnsidGhlbWUiOiJkZWZhdWx0In19).
 
-```mermaid
-graph LR
-A((X)) --> CNN_1d
-Z((y24)) --> CNN_1d
-CNN_1d --> Dense1
-Dense1 --> Dense2
-Dense2 --> Flatten
-Flatten --> Dense3
-Dense3 --> B((yhat24))
-```
+![graph](./assets/figures/mermaid-diagram-20190501164854.svg)
 
-```mermaid
-graph LR
-A((X)) --> CNN_1d
-Z((y48)) --> CNN_1d
-CNN_1d --> Dense1
-Dense1 --> Dense2
-Dense2 --> Flatten
-Flatten --> Dense3
-Dense3 --> B((yhat48))
-```
-
-```mermaid
-graph LR
-A((X)) --> CNN_1d
-Z((y72)) --> CNN_1d
-CNN_1d --> Dense1
-Dense1 --> Dense2
-Dense2 --> Flatten
-Flatten --> Dense3
-Dense3 --> D((yhat72))
-```
-
-
-En el script `CNN_feat.py` se encuentra la función `build_model()` que se encarga
+En el script `CNN_feat2d.py` se encuentra la función `build_model()` que se encarga
 de crear la red de acuerdo a unos parámetros. Pero en esencia es lo siguiente:
 
 ```python
