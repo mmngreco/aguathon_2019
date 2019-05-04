@@ -275,8 +275,15 @@ def split_sequence(x, x_target=0, look_ahead=1, norm_x=True, return_scaler=False
     return out_x, out_y
 
 
+def add_features(data):
+    df = data.rolling(100).mean()
+    data["time"] = data.index.astype(int)
+    return pd.concat([data, df], axis=1).dropna()
+
+
 def main():
     data = load_data(IN_FILE)
+    data = add_features(data)
     send_log()
 
     if PDB:
