@@ -269,7 +269,7 @@ def split_sequence(x, x_target=0, look_ahead=1, norm_x=True, return_scaler=False
     out_x = x[:-look_ahead]
     out_y = y[look_ahead:, x_target][:, None].copy()
 
-    if norm and return_scaler:
+    if norm_x and return_scaler:
         return out_x, out_y, scaler
 
     return out_x, out_y
@@ -283,7 +283,8 @@ def add_features(data):
 
 def main():
     data = load_data(IN_FILE)
-    data = add_features(data)
+    data["i"] = np.arange(data.shape[0])
+    # data = add_features(data)
     send_log()
 
     if PDB:
