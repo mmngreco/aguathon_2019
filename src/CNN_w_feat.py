@@ -383,36 +383,37 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    doc = "test/train split"
+    # -------------------------------------------------------------------------
+    doc = "test/train fraction split"
     parser.add_argument("-s", "--split", type=float, default=0.8, help=doc)
     doc = "Batch size."
     parser.add_argument("-b", "--batch-size", type=int, default=512, help=doc)
-    doc = "Kernel Size."
-    parser.add_argument("-k", "--kernel-size", type=int, default=None, help=doc)
+    doc = "Set patience training param."
+    parser.add_argument("-p", "--patience", type=int, default=20, help=doc)
     doc = "Number of epochs."
     parser.add_argument("-e", "--epochs", type=int, default=230, help=doc)
-    doc = "Number of filters."
-    parser.add_argument("-f", "--filters", type=int, default=8, help=doc)
+    parser.add_argument("--shuffle", type=bool, default=False)
+    # -------------------------------------------------------------------------
+    # Structural params
+    doc = "Kernel Size. A kernel_size equalt to -1 implies equal to look_back."
+    parser.add_argument("-k", "--kernel-size", type=int, default=-1, help=doc)
     doc = "Look back."
     parser.add_argument("-lb", "--look-back", type=int, default=10, help=doc)
     doc = "Look ahead."
     parser.add_argument("-la", "--look-ahead", type=int, default=24, help=doc)
-    doc = "Set patience training param."
-    parser.add_argument("-p", "--patience", type=int, default=20, help=doc)
+    doc = "Number of filters."
+    parser.add_argument("-f", "--filters", type=int, default=8, help=doc)
     doc = "Number of neurons in the first Dense layer."
     parser.add_argument("-n1", "--neurons1", type=int, default=48, help=doc)
     doc = "Number of neurons in the sencond Dense layer."
     parser.add_argument("-n2", "--neurons2", type=int, default=None, help=doc)
     doc = "Define a regularizer like 'l1(0.1)' or 'l2(0.1)'."
     parser.add_argument("-l", "--l1l2", type=str, default="None", help=doc)
-    parser.add_argument("--pdb", action="count")
-    parser.add_argument("--log-path", type=str, default="")
-    parser.add_argument("--plot", type=bool, default=False)
-    parser.add_argument("--shuffle", type=bool, default=False)
-    args = parser.parse_args()
-
     # -------------------------------------------------------------------------
-    # Path
+    parser.add_argument("--plot", type=bool, default=False)
+    parser.add_argument("--log-path", type=str, default="")
+    parser.add_argument("--pdb", action="count")
+    args = parser.parse_args()
 
     # -------------------------------------------------------------------------
     # process some variables
@@ -426,6 +427,8 @@ if __name__ == "__main__":
     else:
         args.log_path = Path(args.log_path)
 
+    if args.kernel_size == -1:
+        args.kernel_size = args.look_back
     # -------------------------------------------------------------------------
 
     def send_log():
@@ -438,8 +441,8 @@ if __name__ == "__main__":
         log.info(f"X_FREQ={X_FREQ}")
         log.info(f"LOOK_BACK={LOOK_BACK}")
         log.info(f"LOOK_AHEAD={LOOK_AHEAD}")
-        log.info(f"FILTERS={FILTERS}")
         log.info(f"KERNEL_SIZE={KERNEL_SIZE}")
+        log.info(f"FILTERS={FILTERS}")
         log.info(f"L1L2={L1L2}")
         log.info(f"D1={D1}")
         log.info(f"D2={D2}")
@@ -482,9 +485,9 @@ if __name__ == "__main__":
     try:
         log = logging.getLogger(__file__)
     except NameError:
-       log = logging.getLogger()
+        log = logging.getLogger()
 
     log.info("COMMAND=python %s" % " ".join(sys.argv))
-
     # -------------------------------------------------------------------------
     main()
+
