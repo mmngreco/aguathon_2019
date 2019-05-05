@@ -1,7 +1,6 @@
 import numpy as np
-from sklearn.model_selection import ParameterGrid
-from sklearn.model_selection import ParameterSampler
-from numpy.random import choice
+
+from sklearn.model_selection import ParameterGrid, ParameterSampler
 
 
 def grid_search():
@@ -10,7 +9,8 @@ def grid_search():
     params = {
         "-b": range(200, 8000, 128),
         "-f": range(60, 300, 4),
-        "--l1l2": ["'l2(0)'", "'l2(0.001)'", "'l2(0.005)'", "'l1(0.001)'", "'l1(0.005)'", "'l1(0.01)'"],
+        "--l1l2": ["'l2(0)'", "'l2(0.001)'", "'l2(0.005)'", "'l1(0.001)'",
+                   "'l1(0.005)'", "'l1(0.01)'"],
         "-n1": range(6, 2048, 32),
         "-n2": range(6, 512, 32),
         "-e": range(10, 100, 20),

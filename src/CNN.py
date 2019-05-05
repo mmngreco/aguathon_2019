@@ -233,20 +233,20 @@ def split_sequence(x, x_target=0, look_ahead=1, norm_x=True, return_scaler=False
     out_x = x[:-look_ahead]
     out_y = y[look_ahead:, x_target][:, None].copy()
 
-    if norm and return_scaler:
+    if norm_x and return_scaler:
         return out_x, out_y, scaler
 
     return out_x, out_y
 
 
 def main():
-    data = load_data(DATA_DIR)
+    data = load_data(IN_FILE).values
     send_log()
 
     target_idx = 5
     train, test = train_test_split(data, SPLIT)
     train_X, train_y = split_sequence(train, target_idx, LOOK_AHEAD)
-    test_X, test_y = split_sequence(test, target_idx LOOK_AHEAD)
+    test_X, test_y = split_sequence(test, target_idx, LOOK_AHEAD)
 
     test_X = test_X[:, :, None]
     train_X = train_X[:, :, None]
@@ -344,8 +344,10 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--epochs", type=int, default=230, help=doc)
     doc = "Number of filters."
     parser.add_argument("-f", "--filters", type=int, default=8, help=doc)
+    doc = "Look back, no used here."
+    parser.add_argument("-lb", "--look-back", type=int, default=0, help=doc)
     doc = "Look ahead."
-    parser.add_argument("-la", "--look-ahead", type=int, default="1", help=doc)
+    parser.add_argument("-la", "--look-ahead", type=int, default=1, help=doc)
     doc = "Set patience training param."
     parser.add_argument("-p", "--patience", type=int, default=20, help=doc)
     doc = "Number of neurons in the first Dense layer."

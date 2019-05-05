@@ -1,10 +1,12 @@
 """CNN model."""
-from init import *
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from tensorflow.keras.models import load_model
-from sklearn.preprocessing import StandardScaler
+
+from init import *
 from pathlib import Path
+from sklearn.preprocessing import StandardScaler
 
 
 def load_data(fname, fill_na=True, y_data=False):

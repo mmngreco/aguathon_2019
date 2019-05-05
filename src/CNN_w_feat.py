@@ -3,159 +3,31 @@ import os
 import sys
 import logging
 
-from init import *
 from uuid import uuid4
 from datetime import datetime
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
-from tensorflow.keras.layers import Conv1D, Dense, Dropout, Flatten, Reshape
+from tensorflow.keras.layers import Conv1D, Dense, Flatten
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.initializers import glorot_normal
 from tensorflow.keras.regularizers import l1, l2
-from numpy.lib.stride_tricks import as_strided
 
 import utils
 import matplotlib.pyplot as plt
 
+from init import *
 from pathlib import Path
 from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 if sys.platform == "darwin":   # to make it work on macos
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-
-def train_test_split(dataset, train_frac):
-    """train_test_split."""
-    train_size = int(len(dataset)*train_frac)
-    return dataset[:train_size, :], dataset[train_size:, :]
-
-
-def split_sequence_time_steps(sequence, look_back, look_ahead, target_idx, norm=True, return_scaler=False):
-    """Returns X and y variables from a sequence.
-
-    Parameters
-    ----------
-    sequence : array-like
-        1d sequence which it will be used to split in X and y.
-    look_back : int
-        Number of periods you want to have for each row.
-    x_freq : int
-        Decimation of x over look_back axis.
-    y_ahead : int
-        Distance ahead to align with each row of x.
-    norm : bool
-        If standarize X or not.
-    return_scaler : bool
-        If norm is True, you may want retrieve the scaler used.
-
-    Returns
-    -------
-    X, y : array-like
-    scaler : Scaler, optional
-    """
-    sequence_x = sequence
-    sequence_y = sequence
-    if norm:
-        scaler = StandardScaler()
-        sequence_x = scaler.fit_transform(sequence_x)
-    out_x = ndseq2strided(sequence_x[:-look_ahead], look_back)
-    out_y = ndseq2strided(sequence_y[look_back + look_ahead -1:, [target_idx]], 1)
-    if norm and return_scaler:
-        return out_x, out_y, scaler
-    return out_x, out_y
-
-
-def seq2strided(seq, window):
-    # http://arogozhnikov.github.io/2015/09/30/NumpyTipsAndTricks2.html
-    stride = seq.strides[0]
-    ts = as_strided(
-            seq,
-            shape=[len(seq) - window + 1, window],
-            strides=[stride, stride])
-    return ts
-
-
-def ndseq2strided(ndseq, win_axis0, win_axis1=None):
-    axis0, axis1 = ndseq.shape
-    if win_axis1 is None:
-        _win_axis1 = axis1
-    strided_seq = as_strided(
-            ndseq,
-            shape=[axis0 - win_axis0 + 1, axis1 - _win_axis1 + 1, win_axis0, _win_axis1],
-            strides=ndseq.strides + ndseq.strides
-    )
-    if win_axis1 is None:
-        axis2squeeze = 1  # this is due to h == win_axis1
-        strided_seq = np.squeeze(strided_seq, axis2squeeze)
-        # strided_seq = np.rollaxis(strided_seq, 0)
-    return strided_seq
-
-
-def sequece_nd2time_steps(sequence, col_target, look_back, y_ahead, x_freq, norm=True, return_scaler=False):
-    n_vars = sequence.shape[1]
-    train_X_collection = []
-    train_y_collection = []
-
-    test_X_collection = []
-    test_y_collection = []
-
-    train, test = train_test_split(x[:, None], SPLIT)
-
-    for i in range(n_vars):
-        train_X, train_y = split_sequence_time_steps(train, look_back, x_freq, y_ahead=y_ahead, norm=norm, return_scaler=return_scaler)
-        test_X, test_y = split_sequence_time_steps(train, look_back, x_freq, y_ahead=y_ahead, norm=norm, return_scaler=return_scaler)
-
-        train_X_collection.append(train_X)
-        test_X_collection.append(test_X)
-
-        train_y_collection.append(train_y)
-        test_y_collection.append(test_y)
-
-    train_X = np.concatenate(train_X_collection, axis=2)
-    test_X = np.concatenate(test_X_collection, axis=2)
-
-def load_data(fname, fill_na=True, y_data=False):
-    """load_data.
-
-    Parameters
-    ----------
-    fname : pathlib.Path
-        Path where data will be loaded.
-    fill_na : bool, optional
-        Pass true if you want fill nans values.
-    y_data : bool, optional
-        If y data (target) is returned or not.
-
-    Returns
-    -------
-    x : pandas.DataFrame
-    y : pandas.DataFrame, optional
-    """
-    assert fname.exists(), "File doesn't exist."
-
-    if PDB:
-        __import__('pdb').set_trace()
-
-    data = pd.read_csv(fname, index_col=0)
-    data.index = data.index.astype("datetime64[ns]")
-    data = data.sort_index(ascending=True)
-    x = data.iloc[:, :6]
-
-    if fill_na:
-        x = (x.groupby(lambda x: x.weekofyear)
-              .transform(lambda x: x.fillna(x.mean())))
-    if y_data:
-        y = data.iloc[:, 7:]
-        return x, y
-    return x
 
 
 def build_model(n_steps, n_features, filters, kernel_size, L1L2, D1, D2, DOUT,
@@ -232,70 +104,26 @@ def plot_pred(y, yhat, name, output_dir):
     plt.tight_layout()
     plt.savefig(f"{output_dir / name}.png")
 
-    pd.DataFrame(y-yhat, columns=["yhat%s" % LOOK_AHEAD]).plot(figsize=(15, 10))
+    pd.DataFrame(y-yhat, columns=[f"yhat {LOOK_AHEAD}"]).plot(figsize=(15, 10))
     plt.title("diff-%s" % name)
     plt.tight_layout()
     plt.savefig(f"{output_dir / name}-diff.png")
 
 
-def split_sequence(x, x_target=0, look_ahead=1, norm_x=True, return_scaler=False):
-    """Given a sequence returns a X, y data.
-
-    Parameters
-    ----------
-    x : 2d-array-like
-    x_target : int
-        If x has more than one column, you need specify which columns will be
-        used as y.
-    look_ahead : int
-        Horizon prediction to pick each value of x as y.
-    norm_x : bool
-        Pass True If x will be standarized.
-    return_scaler : bool
-        Pass True if want return scaler used to standarize x.
-
-    Returns
-    -------
-    x : array-like
-    y : array-like
-    scaler : StandrScaler, optional
-
-    """
-    y = x
-    if norm_x:
-        scaler = StandardScaler()
-        x = scaler.fit_transform(x)
-
-    out_x = x[:-look_ahead]
-    out_y = y[look_ahead:, x_target][:, None].copy()
-
-    if norm_x and return_scaler:
-        return out_x, out_y, scaler
-
-    return out_x, out_y
-
-
-def add_features(data):
-    df = data.rolling(100).mean()
-    data["time"] = data.index.astype(int)
-    return pd.concat([data, df], axis=1).dropna()
-
-
 def main():
-    data = load_data(IN_FILE)
+    data = utils.load_data(IN_FILE)
     data["i"] = np.arange(data.shape[0])
-    # data = add_features(data)
     send_log()
 
     if PDB:
         __import__('pdb').set_trace()
 
     target_idx = 5
-    train, test = train_test_split(data.values, SPLIT)
-    train_X, train_y = split_sequence_time_steps(
+    train, test = train_test_split(data.values, train_size=SPLIT, shuffle=False)
+    train_X, train_y = utils.split_sequence_time_steps(
         train, LOOK_BACK, LOOK_AHEAD, target_idx
         )
-    test_X, test_y = split_sequence_time_steps(
+    test_X, test_y = utils.split_sequence_time_steps(
         test, LOOK_BACK, LOOK_AHEAD, target_idx
         )
 
