@@ -74,7 +74,7 @@ def recurrence_matrix(s, eps=0.10, steps=10):
 
 
 def split_sequence_time_steps(sequence, look_back, look_ahead, target_idx,
-                              norm=True, return_scaler=False):
+                              norm=True, return_scaler=False, use_scaler=None):
     """Returns X and y variables from a sequence.
 
     Parameters
@@ -91,6 +91,8 @@ def split_sequence_time_steps(sequence, look_back, look_ahead, target_idx,
         If standarize X or not.
     return_scaler : bool
         If norm is True, you may want retrieve the scaler used.
+    use_scaler : Scaler
+        If we want to use a pre-fitted scaler to normalize x.
 
     Returns
     -------
@@ -99,13 +101,20 @@ def split_sequence_time_steps(sequence, look_back, look_ahead, target_idx,
     """
     sequence_x = sequence[:-look_ahead]
     sequence_y = sequence[look_back + look_ahead - 1:, [target_idx]]
+
+    if use_scaler is None:
+        use_scaler = StandardScaler()
+        use_scaler.fit(sequence_x)
+
     if norm:
-        scaler = StandardScaler()
-        sequence_x = scaler.fit_transform(sequence_x)
+        sequence_x = use_scaler.transform(sequence_x)
+
     out_x = ndseq2strided(sequence_x, look_back)
     out_y = ndseq2strided(sequence_y, 1)
+
     if norm and return_scaler:
-        return out_x, out_y, scaler
+        return out_x, out_y, use_scaler
+
     return out_x, out_y
 
 

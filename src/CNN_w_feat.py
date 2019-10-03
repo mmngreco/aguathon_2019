@@ -10,7 +10,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from tensorflow.keras.layers import Conv1D, Dense, Flatten
+from tensorflow.keras.layers import Conv1D, Dense, Flatten, StandardScale
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.initializers import glorot_normal
@@ -26,7 +26,7 @@ from sklearn.model_selection import train_test_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-if sys.platform == "darwin":   # to make it work on macos
+if sys.platform == "darwin":  # to make it work on macos
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
@@ -120,11 +120,22 @@ def main():
 
     target_idx = 5
     train, test = train_test_split(data.values, train_size=SPLIT, shuffle=False)
-    train_X, train_y = utils.split_sequence_time_steps(
-        train, LOOK_BACK, LOOK_AHEAD, target_idx
+    train_X, train_y, train_scaler = utils.split_sequence_time_steps(
+        sequence=train,
+        look_back=LOOK_BACK,
+        look_ahead=LOOK_AHEAD,
+        target_idx=target_idx,
+        norm=True,
+        return_scaler=True,
         )
+
     test_X, test_y = utils.split_sequence_time_steps(
-        test, LOOK_BACK, LOOK_AHEAD, target_idx
+        sequence=test,
+        look_back=LOOK_BACK,
+        look_ahead=LOOK_AHEAD,
+        target_idx=target_idx,
+        norm=False,
+        use_scaler=train_scaler
         )
 
     train_y = train_y.squeeze(-1)
@@ -138,15 +149,15 @@ def main():
 
     initializer = glorot_normal(7)
     model = build_model(
-        TIME_STEPS,
-        N_FEATURES,
-        FILTERS,
-        KERNEL_SIZE,
-        L1L2,
-        D1,
-        D2,
-        DOUT,
-        initializer
+        n_steps=TIME_STEPS,
+        n_features=N_FEATURES,
+        filters=FILTERS,
+        kernel_size=KERNEL_SIZE,
+        L1L2=L1L2,
+        D1=D1,
+        D2=D2,
+        DOUT=DOUT,
+        initializer=initializer
     )
 
     history = model.fit(
@@ -211,33 +222,47 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
+
     # -------------------------------------------------------------------------
+    # Training process parameters
     doc = "test/train fraction split"
     parser.add_argument("-s", "--split", type=float, default=0.8, help=doc)
+
     doc = "Batch size."
     parser.add_argument("-b", "--batch-size", type=int, default=512, help=doc)
+
     doc = "Set patience training param."
     parser.add_argument("-p", "--patience", type=int, default=20, help=doc)
+
     doc = "Number of epochs."
     parser.add_argument("-e", "--epochs", type=int, default=230, help=doc)
     parser.add_argument("--shuffle", type=bool, default=False)
+
     # -------------------------------------------------------------------------
     # Structural params
     doc = "Kernel Size. A kernel_size equalt to -1 implies equal to look_back."
     parser.add_argument("-k", "--kernel-size", type=int, default=-1, help=doc)
+
     doc = "Look back."
     parser.add_argument("-lb", "--look-back", type=int, default=10, help=doc)
+
     doc = "Look ahead."
     parser.add_argument("-la", "--look-ahead", type=int, default=24, help=doc)
+
     doc = "Number of filters."
     parser.add_argument("-f", "--filters", type=int, default=8, help=doc)
+
     doc = "Number of neurons in the first Dense layer."
     parser.add_argument("-n1", "--neurons1", type=int, default=48, help=doc)
+
     doc = "Number of neurons in the sencond Dense layer."
     parser.add_argument("-n2", "--neurons2", type=int, default=None, help=doc)
+
     doc = "Define a regularizer like 'l1(0.1)' or 'l2(0.1)'."
     parser.add_argument("-l", "--l1l2", type=str, default="None", help=doc)
+
     # -------------------------------------------------------------------------
+    # Diagnosis parameters
     parser.add_argument("--plot", type=bool, default=False)
     parser.add_argument("--log-path", type=str, default="")
     parser.add_argument("--pdb", action="count")
@@ -257,6 +282,7 @@ if __name__ == "__main__":
 
     if args.kernel_size == -1:
         args.kernel_size = args.look_back
+
     # -------------------------------------------------------------------------
 
     def send_log():

@@ -1,4 +1,4 @@
-"""Initialize."""
+"""Initialize all relevant paths needed to work with."""
 from pathlib import Path
 
 FILE_DIR = Path(__file__).parents[1].absolute().expanduser()

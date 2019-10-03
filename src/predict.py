@@ -1,4 +1,5 @@
-"""CNN model."""
+"""Predict a saved (trained) model.
+"""
 import numpy as np
 import pandas as pd
 

@@ -1,11 +1,32 @@
+"""Utility to make a grid search using command line.
+
+This script builds a combination of parameters given allowed values. The
+combination is randomized but limited by a number of realization defined by the
+user.
+
+"""
 import numpy as np
 
 from sklearn.model_selection import ParameterGrid, ParameterSampler
 
 
-def grid_search():
+def main(params, n):
     seed = 7
     np.random.seed(seed)
+    params_collection = ParameterSampler(params, n_iter=n, random_state=0)
+
+    for params in params_collection:
+        args = " ".join([f"{k} {v}"for k, v in params.items()])
+        print(f"\"python train_model.py {args}\"")
+
+
+if __name__ == "__main__":
+    import sys
+    try:
+        n = sys.argv[1]
+    except IndexError:
+        n = 100  # Default value
+
     params = {
         "-b": range(200, 8000, 128),
         "-f": range(60, 300, 4),
@@ -19,15 +40,5 @@ def grid_search():
         "-la": [24],
      }
 
-    N = 100
-    params_collection = ParameterSampler(params, n_iter=N, random_state=0)
-
-    for params in params_collection:
-        args = " ".join([f"{k} {v}"for k, v in params.items()])
-        print(f"\"python CNN_feat2d.py {args}\"")
-
-
-if __name__ == "__main__":
-    # constants
-    grid_search()
+    main(params=params, n=n)
 
